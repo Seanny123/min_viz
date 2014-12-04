@@ -1,10 +1,7 @@
-console.log("hello from min_main.js!");
-
 // Given a location for inserting the chart and which probes to listen to generate a chart
 // TODO: this function should return a D3 object so the outside code can manage it's location
 function genChart(selector, probeLabelList, label, probeDispatch){
 
-  console.log("creating chart");
   // The fact that we're copying the data to each chart feels weird.
   var n = 100;
   var chartData = Array.apply(null, Array(40)).map(Number.prototype.valueOf,0);
@@ -88,12 +85,22 @@ function genChart(selector, probeLabelList, label, probeDispatch){
 
 }
 
+// taskbar has to be created first
+$( ".taskbar" ).taskbar();
+
+// window is binded to taskbar widget,
+// so it has to be created second
+$( ".window" ).window();
+
 var probeDispatch = d3.dispatch("probeLoad");
 
 // Generate the visual outputs you want heregenChart("#visualisation", ["prod_probe"], "foo", probeDispatch);
-console.log(d3);
-genChart("#visualisation", ["prod_probe"], "foo", probeDispatch);
-genChart("#visualisation", ["inputA_probe"], "bar", probeDispatch);
+genChart(".window", ["prod_probe"], "foo", probeDispatch);
+//genChart(".window", ["inputA_probe"], "bar", probeDispatch);
+$(".window").window({resizeStop: function(ui){
+  console.log(ui);
+}
+});
 
 // Trying desperatly to imitate reading from web socket
 var lines;
@@ -107,11 +114,12 @@ function parse_dispatch(){
   probeDispatch.probeLoad(tmp_d.data.probes, tmp_d.data.t);
   line_count += 1;
   if(line_count >= lines.length){
-    line_count = 0
+    //line_count = 0
+    window.clearInterval(parse_timer);
   }
 }
 
 $.get('static/messages.json', function (data) {
   lines = data.split("\n");
-  parse_timer = window.setInterval(function () {parse_dispatch()}, 15);
+  parse_timer = window.setInterval(function () {parse_dispatch()}, 50);
 }, 'text');
