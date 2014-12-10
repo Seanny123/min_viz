@@ -1,68 +1,115 @@
+// stick everything inside a namespace because of paranoia
+if (typeof VIZ == "undefined" || !VIZ) {
+  var VIZ = {
+    windowDiv: '#visualisation',
+    windowCount: 0
+  };
+}
+
 // Given a location for inserting the chart and which probes to listen to generate a chart
-// TODO: this function should return a D3 object so the outside code can manage it's location
-function genChart(selector, probeLabelList, label, probeDispatch){
+// TODO: these parameters could be managed better
+VIZ.genChart = function(probeLabelList, label, probeDispatch, windowHeight, windowWidth, displayedDataSize){
+
+  // In case we forget the 'new' keyword
+    if ( !(this instanceof VIZ.genChart) ) {
+      return new VIZ.genChart(selector, probeLabelList, label, probeDispatch);
+    }
+
+  this.windowHeight = windowHeight;
+  this.windowWidth = windowWidth;
+  this.selector = "#chart-window-"+VIZ.windowCount
+  $(VIZ.windowDiv).append("<div id='chart-window-"+VIZ.windowCount+"'>")
+  VIZ.windowCount += 1;
+  // Will "this" still work here?
+  this.container = $(this.selector).window({
+    width: this.windowWidth,
+    height: this.windowHeight,
+    resizeStop: function(event, ui){
+      console.log("resizing")
+      console.log(ui.size)
+      this.windowWidth = ui.size(0);
+      this.windowHeight = ui.size(1);
+      this.draw();
+    }
+  });
 
   // The fact that we're copying the data to each chart feels weird.
-  var n = 100;
-  var chartData = Array.apply(null, Array(40)).map(Number.prototype.valueOf,0);
-  var chartInputs = probeLabelList; //Probes to listen to
+  this.chartInputs = probeLabelList; //Probes to listen to
+  // WTF is label a reserved keyword in JavaScript?
+  this.label = label;
 
-  // TODO: How to set these ranges according to the expected output? How did Javaviz do it?
-  var margin = {top: 20, right: 20, bottom: 20, left: 40},
-    width = 960 - margin.left - margin.right,
-    height = 500 - margin.top - margin.bottom;
+  this.init(displayedDataSize);
+  this.draw();
 
-  // Domain is the minimum and maximum values to display on the graph
-  // Range is the mount of SVG to cover
-  // Get passed into the axes constructors
-  // TODO: better names for these variables
-  var xAxisScale = d3.scale.linear()
-      .domain([0, n - 1])
-      .range([0, width]);
-   
-  var yAxisScale = d3.scale.linear()
-      .domain([-30, 30])
-      .range([height, 0]);
-   
-  // gets a set of x and y co-ordinates from our data
-  var line = d3.svg.line()
-      // sets the x value to move forward with time
-      .x(function(data, index) { return xAxisScale(index); })
-      // sets the y value to just use the data y value
-      .y(function(data, index) { return yAxisScale(data); });
+  probeDispatch.on(("probeLoad."+label), this.probeLoad());
+}
 
-  var svg = d3.select(selector).append("svg")
-      .attr("width", width + margin.left + margin.right)
-      .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-  svg.append("defs").append("clipPath")
-      .attr("id", "clip")
-    .append("rect")
-      .attr("width", width)
-      .attr("height", height);
+// These are functions that other charts might want to modify
+VIZ.genChart.prototype {
+  
+  init: function(displayedDataSize){
+    this.n = 100; // TODO: rename this variable
+    this.chartData = Array.apply(null, Array(displayedDataSize)).map(Number.prototype.valueOf,0);
+  },
 
-  // create the x and y axis
+  draw: function(){
+    // TODO: How to set these ranges according to the expected output? 
+    // How did Javaviz do it?
+    // Was it based off the radius?
+    var margin = {top: 20, right: 20, bottom: 20, left: 40},
+      width = this.windowWidth - margin.left - margin.right,
+      height = this.windowHeight - margin.top - margin.bottom;
 
-  svg.append("g")
-      .attr("class", "x axis")
-      .attr("transform", "translate(0," + yAxisScale(0) + ")") // code for moving the x axis as it updates
-      .call(d3.svg.axis().scale(xAxisScale).orient("bottom"));
+    // Domain is the minimum and maximum values to display on the graph
+    // Range is the mount of SVG to cover
+    // Get passed into the axes constructors
+    // TODO: better names for these variables
+    var xAxisScale = d3.scale.linear()
+        .domain([0, this.n - 1])
+        .range([0, width]);
+     
+    var yAxisScale = d3.scale.linear()
+        .domain([-30, 30])
+        .range([height, 0]);
+     
+    // gets a set of x and y co-ordinates from our data
+    var line = d3.svg.line()
+        // sets the x value to move forward with time
+        .x(function(data, index) { return xAxisScale(index); })
+        // sets the y value to just use the data y value
+        .y(function(data, index) { return yAxisScale(data); });
 
-  svg.append("g")
-      .attr("class", "y axis")
-      .call(d3.svg.axis().scale(yAxisScale).orient("left"));
+    var svg = d3.select(this.selector).append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    svg.append("defs").append("clipPath")
+        .attr("id", "clip")
+      .append("rect")
+        .attr("width", width)
+        .attr("height", height);
 
-  var path = svg.append("g")
-      .attr("clip-path", "url(#clip)") // limit where the line can be drawn
-    .append("path")
-      .datum(chartData) // chartData is the data we're going to plot
-      .attr("class", "line")
-      .attr("d", line); // This is to help draw the sgv path
+    // create the x and y axis
 
+    svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + yAxisScale(0) + ")") // code for moving the x axis as it updates
+        .call(d3.svg.axis().scale(xAxisScale).orient("bottom"));
 
+    svg.append("g")
+        .attr("class", "y axis")
+        .call(d3.svg.axis().scale(yAxisScale).orient("left"));
 
-  probeDispatch.on(("probeLoad."+label), function(probeData, simTime) {
+    var path = svg.append("g")
+        .attr("clip-path", "url(#clip)") // limit where the line can be drawn
+      .append("path")
+        .datum(chartData) // chartData is the data we're going to plot
+        .attr("class", "line")
+        .attr("d", line); // This is to help draw the sgv path
+  },
+
+  probeLoad: function(probeData, simTime) {
     // Filter until you have only the desired data
     // TODO: Make this work for multiple probes
 
@@ -81,26 +128,17 @@ function genChart(selector, probeLabelList, label, probeDispatch){
       .duration(0.1) // is it the duration of the transition?
       .ease("linear") // this is just to say that the speed of the line should be constant
       .attr("transform", "translate(" + xAxisScale(-1) + ",0)");
-  });
-
+  }
 }
 
-// taskbar has to be created first
+// taskbar has to be created first before creating any windows
 $( ".taskbar" ).taskbar();
-
-// window is binded to taskbar widget,
-// so it has to be created second
-$( ".window" ).window();
 
 var probeDispatch = d3.dispatch("probeLoad");
 
-// Generate the visual outputs you want heregenChart("#visualisation", ["prod_probe"], "foo", probeDispatch);
-genChart(".window", ["prod_probe"], "foo", probeDispatch);
-//genChart(".window", ["inputA_probe"], "bar", probeDispatch);
-$(".window").window({resizeStop: function(ui){
-  console.log(ui);
-}
-});
+
+new VIZ.genChart(".window", ["prod_probe"], "foo", probeDispatch);
+
 
 // Trying desperatly to imitate reading from web socket
 var lines;
