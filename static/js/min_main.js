@@ -62,11 +62,10 @@ VIZ.genChart.prototype = {
     // Range is the mount of SVG to cover
     // Get passed into the axes constructors
     // TODO: better names for these variables
-    console.log(width);
     var xAxisScale = d3.scale.linear()
         .domain([0, this.n - 1])
         .range([0, width]);
-     
+    
     var yAxisScale = d3.scale.linear()
         .domain([-30, 30])
         .range([height, 0]);
@@ -140,7 +139,7 @@ $( ".taskbar" ).taskbar();
 var probeDispatch = d3.dispatch("probeLoad");
 
 
-new VIZ.genChart(".window", ["prod_probe"], "foo", probeDispatch);
+new VIZ.genChart(["prod_probe"], "foo", probeDispatch, 500, 400, 40);
 
 
 // Trying desperatly to imitate reading from web socket
