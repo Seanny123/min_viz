@@ -11,41 +11,39 @@ if (typeof VIZ == "undefined" || !VIZ) {
 VIZ.genChart = function(probeLabelList, label, probeDispatch, windowHeight, windowWidth, displayedDataSize){
 
   // In case we forget the 'new' keyword
-    if ( !(this instanceof VIZ.genChart) ) {
-      return new VIZ.genChart(selector, probeLabelList, label, probeDispatch);
-    }
+  if ( !(this instanceof VIZ.genChart) ) {
+    return new VIZ.genChart(selector, probeLabelList, label, probeDispatch);
+  }
 
+  self = this
   this.windowHeight = windowHeight;
   this.windowWidth = windowWidth;
-  this.selector = "#chart-window-"+VIZ.windowCount
-  $(VIZ.windowDiv).append("<div id='chart-window-"+VIZ.windowCount+"'>")
+  this.selector = "#chart-window-"+VIZ.windowCount;
+  $(VIZ.windowDiv).append("<div id='chart-window-"+VIZ.windowCount+"'>");
   VIZ.windowCount += 1;
   // Will "this" still work here?
   this.container = $(this.selector).window({
-    width: this.windowWidth,
-    height: this.windowHeight,
+    width: self.windowWidth,
+    height: self.windowHeight,
     resizeStop: function(event, ui){
-      console.log("resizing")
-      console.log(ui.size)
-      this.windowWidth = ui.size(0);
-      this.windowHeight = ui.size(1);
-      this.draw();
+      self.windowWidth = ui.size.width;
+      self.windowHeight = ui.size.height;
+      self.draw();
     }
   });
 
   // The fact that we're copying the data to each chart feels weird.
   this.chartInputs = probeLabelList; //Probes to listen to
-  // WTF is label a reserved keyword in JavaScript?
   this.label = label;
 
   this.init(displayedDataSize);
   this.draw();
 
-  probeDispatch.on(("probeLoad."+label), this.probeLoad());
+  probeDispatch.on(("probeLoad."+label), this.probeLoad(probeData, simTime));
 }
 
 // These are functions that other charts might want to modify
-VIZ.genChart.prototype {
+VIZ.genChart.prototype = {
   
   init: function(displayedDataSize){
     this.n = 100; // TODO: rename this variable
@@ -64,6 +62,7 @@ VIZ.genChart.prototype {
     // Range is the mount of SVG to cover
     // Get passed into the axes constructors
     // TODO: better names for these variables
+    console.log(width);
     var xAxisScale = d3.scale.linear()
         .domain([0, this.n - 1])
         .range([0, width]);
@@ -79,6 +78,9 @@ VIZ.genChart.prototype {
         // sets the y value to just use the data y value
         .y(function(data, index) { return yAxisScale(data); });
 
+    // Remove previously rendered graph
+    d3.select(this.selector).selectAll("*").remove();
+
     var svg = d3.select(this.selector).append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
@@ -90,7 +92,8 @@ VIZ.genChart.prototype {
         .attr("width", width)
         .attr("height", height);
 
-    // create the x and y axis
+    // create the x and y axis // the number of ticks for this can be a bit silly
+    // how to improve?
 
     svg.append("g")
         .attr("class", "x axis")
@@ -104,7 +107,7 @@ VIZ.genChart.prototype {
     var path = svg.append("g")
         .attr("clip-path", "url(#clip)") // limit where the line can be drawn
       .append("path")
-        .datum(chartData) // chartData is the data we're going to plot
+        .datum(self.chartData) // chartData is the data we're going to plot
         .attr("class", "line")
         .attr("d", line); // This is to help draw the sgv path
   },
@@ -116,8 +119,8 @@ VIZ.genChart.prototype {
     // Loop through each of the inputs you want to plot
     chartInputs.forEach(function(input) {
           // Remove the old data
-        chartData.shift();
-        chartData.push(probeData[input].data[0]);
+        self.chartData.shift();
+        self.chartData.push(probeData[input].data[0]);
     });
 
     // Then update the path
