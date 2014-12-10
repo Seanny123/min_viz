@@ -118,12 +118,10 @@ VIZ.genChart.prototype = {
     // Loop through each of the inputs you want to plot
     self.chartInputs.forEach(function(input) {
           // Remove the old data
-        console.log("shiftin'");
         self.chartData.shift();
         self.chartData.push(probeData[input].data[0]);
     });
 
-    console.log("updating the path");
     // Then update the path
     self.path
       .attr("d", self.line)
@@ -132,7 +130,6 @@ VIZ.genChart.prototype = {
       .duration(0.1) // is it the duration of the transition?
       .ease("linear") // this is just to say that the speed of the line should be constant
       .attr("transform", "translate(" + self.xAxisScale(-1) + ",0)");
-    console.log("done updating the path");
   }
 }
 
