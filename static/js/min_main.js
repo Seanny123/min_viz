@@ -15,14 +15,14 @@ VIZ.genChart = function(probeLabelList, label, probeDispatch, windowHeight, wind
     return new VIZ.genChart(selector, probeLabelList, label, probeDispatch);
   }
 
-  self = this
-  this.windowHeight = windowHeight;
-  this.windowWidth = windowWidth;
-  this.selector = "#chart-window-"+VIZ.windowCount;
+  self = this //necessary so that code can still work while changing contexts
+  self.windowHeight = windowHeight;
+  self.windowWidth = windowWidth;
+  self.selector = "#chart-window-"+VIZ.windowCount;
   $(VIZ.windowDiv).append("<div id='chart-window-"+VIZ.windowCount+"'>");
   VIZ.windowCount += 1;
   // Will "this" still work here?
-  this.container = $(this.selector).window({
+  self.container = $(self.selector).window({
     width: self.windowWidth,
     height: self.windowHeight,
     resizeStop: function(event, ui){
@@ -33,21 +33,19 @@ VIZ.genChart = function(probeLabelList, label, probeDispatch, windowHeight, wind
   });
 
   // The fact that we're copying the data to each chart feels weird.
-  this.chartInputs = probeLabelList; //Probes to listen to
-  this.label = label;
+  self.chartInputs = probeLabelList; //Probes to listen to
+  self.label = label;
 
-  this.init(displayedDataSize);
-  this.draw();
-
-  probeDispatch.on(("probeLoad."+label), this.probeLoad(probeData, simTime));
+  self.init(displayedDataSize);
+  self.draw();
 }
 
 // These are functions that other charts might want to modify
 VIZ.genChart.prototype = {
   
   init: function(displayedDataSize){
-    this.n = 100; // TODO: rename this variable
-    this.chartData = Array.apply(null, Array(displayedDataSize)).map(Number.prototype.valueOf,0);
+    self.n = 100; // TODO: rename this variable
+    self.chartData = Array.apply(null, Array(displayedDataSize)).map(Number.prototype.valueOf,0);
   },
 
   draw: function(){
@@ -55,15 +53,15 @@ VIZ.genChart.prototype = {
     // How did Javaviz do it?
     // Was it based off the radius?
     var margin = {top: 20, right: 20, bottom: 20, left: 40},
-      width = this.windowWidth - margin.left - margin.right,
-      height = this.windowHeight - margin.top - margin.bottom;
+      width = self.windowWidth - margin.left - margin.right,
+      height = self.windowHeight - margin.top - margin.bottom;
 
     // Domain is the minimum and maximum values to display on the graph
     // Range is the mount of SVG to cover
     // Get passed into the axes constructors
     // TODO: better names for these variables
-    var xAxisScale = d3.scale.linear()
-        .domain([0, this.n - 1])
+    self.xAxisScale = d3.scale.linear()
+        .domain([0, self.n - 1])
         .range([0, width]);
     
     var yAxisScale = d3.scale.linear()
@@ -71,16 +69,16 @@ VIZ.genChart.prototype = {
         .range([height, 0]);
      
     // gets a set of x and y co-ordinates from our data
-    var line = d3.svg.line()
+    self.line = d3.svg.line()
         // sets the x value to move forward with time
-        .x(function(data, index) { return xAxisScale(index); })
+        .x(function(data, index) { return self.xAxisScale(index); })
         // sets the y value to just use the data y value
         .y(function(data, index) { return yAxisScale(data); });
 
     // Remove previously rendered graph
-    d3.select(this.selector).selectAll("*").remove();
+    d3.select(self.selector).selectAll("*").remove();
 
-    var svg = d3.select(this.selector).append("svg")
+    var svg = d3.select(self.selector).append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
       .append("g")
@@ -97,39 +95,44 @@ VIZ.genChart.prototype = {
     svg.append("g")
         .attr("class", "x axis")
         .attr("transform", "translate(0," + yAxisScale(0) + ")") // code for moving the x axis as it updates
-        .call(d3.svg.axis().scale(xAxisScale).orient("bottom"));
+        .call(d3.svg.axis().scale(self.xAxisScale).orient("bottom"));
 
     svg.append("g")
         .attr("class", "y axis")
         .call(d3.svg.axis().scale(yAxisScale).orient("left"));
 
-    var path = svg.append("g")
+    self.path = svg.append("g")
         .attr("clip-path", "url(#clip)") // limit where the line can be drawn
       .append("path")
         .datum(self.chartData) // chartData is the data we're going to plot
         .attr("class", "line")
-        .attr("d", line); // This is to help draw the sgv path
+        .attr("d", self.line); // This is to help draw the sgv path
+
+    probeDispatch.on(("probeLoad."+self.label), self.probeParse);
   },
 
-  probeLoad: function(probeData, simTime) {
+  probeParse: function(probeData, simTime) {
     // Filter until you have only the desired data
     // TODO: Make this work for multiple probes
 
     // Loop through each of the inputs you want to plot
-    chartInputs.forEach(function(input) {
+    self.chartInputs.forEach(function(input) {
           // Remove the old data
+        console.log("shiftin'");
         self.chartData.shift();
         self.chartData.push(probeData[input].data[0]);
     });
 
+    console.log("updating the path");
     // Then update the path
-    path
-      .attr("d", line)
+    self.path
+      .attr("d", self.line)
       .attr("transform", null)
     .transition()
       .duration(0.1) // is it the duration of the transition?
       .ease("linear") // this is just to say that the speed of the line should be constant
-      .attr("transform", "translate(" + xAxisScale(-1) + ",0)");
+      .attr("transform", "translate(" + self.xAxisScale(-1) + ",0)");
+    console.log("done updating the path");
   }
 }
 
