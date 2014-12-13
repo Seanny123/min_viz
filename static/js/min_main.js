@@ -15,40 +15,42 @@ VIZ.genChart = function(probeLabelList, label, probeDispatch, windowHeight, wind
     return new VIZ.genChart(selector, probeLabelList, label, probeDispatch);
   }
 
-  self = this //necessary so that code can still work while changing contexts
+  // it can't be a var, but I'm not sure why...
+  var self = this //necessary so that code can still work while changing contexts
   self.windowHeight = windowHeight;
   self.windowWidth = windowWidth;
+  this.label = label;
   self.selector = "#chart-window-"+VIZ.windowCount;
   $(VIZ.windowDiv).append("<div id='chart-window-"+VIZ.windowCount+"'>");
   VIZ.windowCount += 1;
-  // Will "this" still work here?
   self.container = $(self.selector).window({
     width: self.windowWidth,
     height: self.windowHeight,
+    title: label,
     resizeStop: function(event, ui){
       self.windowWidth = ui.size.width;
       self.windowHeight = ui.size.height;
-      self.draw();
+      self.draw(self);
     }
   });
 
   // The fact that we're copying the data to each chart feels weird.
   self.chartInputs = probeLabelList; //Probes to listen to
-  self.label = label;
 
   self.init(displayedDataSize);
-  self.draw();
-}
+  self.draw(self);
+};
 
 // These are functions that other charts might want to modify
 VIZ.genChart.prototype = {
   
   init: function(displayedDataSize){
-    self.n = 100; // TODO: rename this variable
-    self.chartData = Array.apply(null, Array(displayedDataSize)).map(Number.prototype.valueOf,0);
+    this.n = 100; // TODO: rename this variable
+    this.chartData = Array.apply(null, Array(displayedDataSize)).map(Number.prototype.valueOf,0);
+    probeDispatch.on(("probeLoad."+this.label), this.probeParse.bind(this));
   },
 
-  draw: function(){
+  draw: function(self){
     // TODO: How to set these ranges according to the expected output? 
     // How did Javaviz do it?
     // Was it based off the radius?
@@ -107,21 +109,18 @@ VIZ.genChart.prototype = {
         .datum(self.chartData) // chartData is the data we're going to plot
         .attr("class", "line")
         .attr("d", self.line); // This is to help draw the sgv path
-
-    probeDispatch.on(("probeLoad."+self.label), self.probeParse);
   },
 
   probeParse: function(probeData, simTime) {
     // Filter until you have only the desired data
     // TODO: Make this work for multiple probes
-
+    var self = this;
     // Loop through each of the inputs you want to plot
-    self.chartInputs.forEach(function(input) {
+    this.chartInputs.forEach(function(input) {
           // Remove the old data
         self.chartData.shift();
         self.chartData.push(probeData[input].data[0]);
     });
-
     // Then update the path
     self.path
       .attr("d", self.line)
@@ -131,16 +130,15 @@ VIZ.genChart.prototype = {
       .ease("linear") // this is just to say that the speed of the line should be constant
       .attr("transform", "translate(" + self.xAxisScale(-1) + ",0)");
   }
-}
+};
 
 // taskbar has to be created first before creating any windows
 $( ".taskbar" ).taskbar();
 
 var probeDispatch = d3.dispatch("probeLoad");
 
-
-new VIZ.genChart(["prod_probe"], "foo", probeDispatch, 500, 400, 40);
-
+new VIZ.genChart(["inputB_probe"], "Input B", probeDispatch, 500, 400, 40);
+new VIZ.genChart(["prod_probe"], "Product", probeDispatch, 500, 400, 40);
 
 // Trying desperatly to imitate reading from web socket
 var lines;
@@ -157,9 +155,12 @@ function parse_dispatch(){
     //line_count = 0
     window.clearInterval(parse_timer);
   }
-}
+};
 
 $.get('static/messages.json', function (data) {
   lines = data.split("\n");
-  parse_timer = window.setInterval(function () {parse_dispatch()}, 50);
+  parse_timer = window.setInterval(
+    function () {
+      parse_dispatch();
+    }, 50);
 }, 'text');
