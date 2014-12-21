@@ -1,4 +1,4 @@
-"""Sean's hacky vizualizer proof of concept
+"""Sean's hacky vizualizer proof of concept. This file just loads the front-end
 
 Usage: python main.py [port=8080]
 """
@@ -21,13 +21,8 @@ import time
 import ipdb
 
 import sys
-#import pydevd
 
-def isidentifier(s):
-    if s in keyword.kwlist:
-        return False
-    return re.match(r'^[a-z_][a-z0-9_]*$', s, re.I) is not None
-
+# when a user reaches our url, give the index.html
 class  MainHandler(tornado.web.RequestHandler):
     """Request handler for the main landing page."""
     @tornado.web.asynchronous
@@ -54,7 +49,8 @@ settings = {
     'debug': False,
 }
 
-# I want to rename graph.json to something that better describes what it's sending to the front end
+# I want to rename graph.json to something that better describes 
+# what it's sending to the front end
 application = Application([
     (r'/', MainHandler)
 ], **settings)
@@ -62,6 +58,7 @@ application = Application([
 if __name__ == '__main__':
     port = int((sys.argv + [8085])[1])
     application.listen(port)
+    # open a new tab on start
     webbrowser.open_new_tab('http://localhost:%d/' % port)
     # For debugging purposes reload Tornado whenever one of the static (Javascript, CSS, HTML) are loaded
     tornado.autoreload.start()
